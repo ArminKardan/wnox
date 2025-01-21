@@ -102,7 +102,7 @@ export namespace App {
                     "message",
                     {
                         to: `${channel}@conference.qepal.com`,
-                        from: `${c.app + "-" + global.uid + "-" + global.uid.toString()}@qepal.com/${c.resource}`,
+                        from: `${c.app + "-" + global.uid.toString()}@qepal.com/${c.resource}`,
                         type: "groupchat"
                     },
                     global.xmppxml("body", {}, body,
@@ -140,6 +140,7 @@ export namespace App {
         })).json()
 
         global.uid = new ObjectId(json.uid)
+        await sleep(1000)
 
         // const chalk = (await import('chalk')).default
         // const chalk = (await require('chalk')).default

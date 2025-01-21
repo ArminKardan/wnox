@@ -6,11 +6,12 @@ import fs from 'fs'
 
 declare global { var db: import("mongodb").Db; }
 
+global.wsdebug = true;
 
 (async () => {
 
     await App.Connect({ //if process args not available use this
-        app: "mailer",
+        app: "mailers8",
         resource: "default",
         securekey: "ev2uF1TbAhONGZuvGkKzVYLVbU2QbjMY5sOB9tyrODHXNs3r",
         image: "/files/email.webp",
