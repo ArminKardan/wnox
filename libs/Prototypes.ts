@@ -12,32 +12,32 @@ declare global {
     }
 
     var nexus: {
-        subscribe: (channel:string)=>void,
-        unsubscribe: (channel:string)=>void,
-        channels:Set<string>,
-        msgreceiver: (from:string, body:string)=>void,
-        connected:boolean,
-        api: (specs: { app: string, cmd: string, body?: any, jid?: string, prioritize_public?: boolean })=> Promise<any>,
+        subscribe: (channel: string) => void,
+        unsubscribe: (channel: string) => void,
+        channels: Set<string>,
+        msgreceiver: (specs: { from: string, body: string, itsme: boolean, itsbro: boolean }) => void,
+        connected: boolean,
+        api: (specs: { app: string, cmd: string, body?: any, jid?: string, prioritize_public?: boolean }) => Promise<any>,
         sendtojid: (jid: string, body: string) => Promise<any>,
         sendtochannel: (channel: string, body: string) => Promise<any>,
     }
 
-    function SerialGenerator(len:number):string
+    function SerialGenerator(len: number): string
     function cdn(url: string): string;
     function api(url: string, data?: any): Promise<any>;
     namespace QSON {
         export function parse(input: string): any;
         export function stringify(input: Object): string;
-      }
+    }
     var uid: ObjectId
 }
 
-global.SerialGenerator = (len:number):string =>{
+global.SerialGenerator = (len: number): string => {
     var chars = "0123456789ABCDEFGHJKLMNOPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     var randomstring = '';
-    for (var i=0; i<len; i++) {
+    for (var i = 0; i < len; i++) {
         var rnum = Math.floor(Math.random() * chars.length);
-        randomstring += chars.substring(rnum,rnum+1);
+        randomstring += chars.substring(rnum, rnum + 1);
     }
     return randomstring;
 }
@@ -51,12 +51,12 @@ global.MD5 = (data: string | Buffer) => {
 
 global.api = async (url: string, data?: any): Promise<any> => {
     if (data) {
-      return await (await fetch(url, { method: "POST", body: JSON.stringify(data) })).json()
+        return await (await fetch(url, { method: "POST", body: JSON.stringify(data) })).json()
     }
     else {
-      return await (await fetch(url)).json()
+        return await (await fetch(url)).json()
     }
-  }
+}
 
 global.QSON = {
     stringify: (obj) => JSON.stringify(obj),

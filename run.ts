@@ -6,11 +6,11 @@ import fs from 'fs'
 
 declare global { var db: import("mongodb").Db; }
 
-global.wsdebug = true;
+// global.wsdebug = true;
 
 (async () => {
 
-    await App.Connect({ //if process args not available use this
+    let c = await App.Connect({ //if process args not available use this
         app: "mailers8",
         resource: "default",
         securekey: "ev2uF1TbAhONGZuvGkKzVYLVbU2QbjMY5sOB9tyrODHXNs3r",
@@ -20,14 +20,22 @@ global.wsdebug = true;
 
     console.log("[bridge] connected.")
 
-    nexus.msgreceiver = (from, body)=>{
-        console.log(from, body)
+    nexus.msgreceiver = (specs) => {
+        if (specs.itsme) {
+            console.log("msg from me:", specs.body)
+        }
+        else if (specs.itsbro) {
+            console.log("msg from bro:", specs.body)
+        }
+        else {
+            console.log("msg from:", specs.from, specs.body)
+        }
     }
 
     nexus.subscribe("mychannel")
 
     setInterval(() => {
-        nexus.sendtochannel("mychannel","hiii")
+        nexus.sendtochannel("mychannel", "hiii")
     }, 2000);
 
     App.on("ping", async (json, uid, isapp) => {

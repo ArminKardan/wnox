@@ -29,9 +29,10 @@ export namespace App {
 
         global.nexus = {
             subscribe: async (channel: string) => {
+                console.log("subscribing to:", `${channel + "@conference.qepal.com"}/${c.app + "-" + global.uid.toString() + "-" + c.resource}`)
                 await global.xmpp.send(global.xmppxml(
                     'presence',
-                    { to: `${channel + "@conference.qepal.com"}/${c.app + "-" + c.resource}` },
+                    { to: `${channel + "@conference.qepal.com"}/${c.app + "-" + global.uid.toString() + "-" + c.resource}` },
                 ));
                 global.nexus.channels.add(channel)
                 return 0
@@ -109,6 +110,8 @@ export namespace App {
                     )))
             },
         }
+
+
     }
 
     let Events: Array<{ api: string, cb: (json: any, uid: string, isapp: boolean) => any }> = [];
@@ -123,7 +126,13 @@ export namespace App {
         securekey: string,
         public?: boolean,
         image?: string,
-    }) {
+    }): Promise<{
+        app: string,
+        resource: string,
+        securekey: string,
+        image?: string,
+        public?: boolean,
+    }> {
 
         let json = await (await fetch("http://192.168.1.10:3000/api/bridge/worker/init", {
             method: "POST",
@@ -140,7 +149,7 @@ export namespace App {
         })).json()
 
         global.uid = new ObjectId(json.uid)
-        await sleep(1000)
+        global.myjid = config.app + "-" + global.uid.toString() + "@qepal.com/" + config.resource
 
         // const chalk = (await import('chalk')).default
         // const chalk = (await require('chalk')).default
@@ -211,7 +220,7 @@ export namespace App {
 
 
 
-        return new Promise<any>(async r => {
+        return await new Promise<any>(async r => {
 
             const xmpp = client({
                 service: "wss://bridge.qepal.com/ws",
@@ -267,6 +276,8 @@ export namespace App {
                 if (stanza.is("message")) {
                     const body = stanza.getChildText("body");
                     const from = stanza.attrs.from;
+                    const itsme = (from as string).includes(c.app + "-" + global.uid.toString() + "-" + c.resource)
+                    const itsbro = !itsme && (from as string).includes(c.app + "-" + global.uid.toString())
                     if (body && !stanza.getChild('delay')) {
 
                         if (body.startsWith("{")) {
@@ -295,13 +306,14 @@ export namespace App {
                                     }
                                 }
                                 else {
-                                    global.nexus.msgreceiver(from, body)
+                                    global.nexus.msgreceiver({ from, body, itsme, itsbro })
                                 }
                             }
                             catch { }
                         }
                         else {
-                            global.nexus.msgreceiver(from, body)
+
+                            global.nexus.msgreceiver({ from, body, itsme, itsbro })
                         }
 
                     }
@@ -310,7 +322,7 @@ export namespace App {
 
             xmpp.on('online', async (address) => {
                 xmpp.send(xml("presence"));
-                r(null)
+                r(c)
             });
 
             xmpp.start().catch((err) => {
