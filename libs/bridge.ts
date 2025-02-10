@@ -52,7 +52,7 @@ export namespace App {
             api: async (specs: { app: string, cmd: string, body: any, jid?: string, prioritize_public: boolean }) => {
                 let jid = specs.jid
                 if (!jid) {
-                    let json = await api("http://192.168.1.10:3000/api/bridge/worker/findfreeresource", { app: specs.app, securekey: c.securekey })
+                    let json = await api("https://qepal.com/api/bridge/worker/findfreeresource", { app: specs.app, securekey: c.securekey })
                     let jids = json.jids
                     if (jids.length > 0) {
                         jid = !specs.prioritize_public ? jids[0] : jids.at(-1);
@@ -134,7 +134,7 @@ export namespace App {
         public?: boolean,
     }> {
 
-        let json = await (await fetch("http://192.168.1.10:3000/api/bridge/worker/init", {
+        let json = await (await fetch("https://qepal.com/api/bridge/worker/init", {
             method: "POST",
             headers: {
                 // 'Content-Type': 'application/json',

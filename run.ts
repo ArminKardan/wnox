@@ -11,7 +11,7 @@ declare global { var db: import("mongodb").Db; }
 (async () => {
 
     let c = await App.Connect({ //if process args not available use this
-        app: "mailers8",
+        app: "myapper",
         resource: "default",
         securekey: "ev2uF1TbAhONGZuvGkKzVYLVbU2QbjMY5sOB9tyrODHXNs3r",
         image: "/files/email.webp",

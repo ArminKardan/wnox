@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM docker.arvancloud.ir/node:23-alpine AS base
 
 FROM base AS deps
 
