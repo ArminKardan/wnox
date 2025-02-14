@@ -13,7 +13,7 @@ declare global { var db: import("mongodb").Db; }
     let c = await App.Connect({ //if process args not available use this
         app: "myapper",
         resource: "default",
-        securekey: "ev2uF1TbAhONGZuvGkKzVYLVbU2QbjMY5sOB9tyrODHXNs3r",
+        securekey: "",
         image: "/files/email.webp",
         public: true,
     })

@@ -10,4 +10,4 @@ COPY ./linux /apps/
 
 WORKDIR /apps/wmailer
 
-CMD ["yarn", "ts-node", "--transpileOnly", "run"]
+CMD ["yarn", "ts-node", "--transpileOnly", "run.ts"]
