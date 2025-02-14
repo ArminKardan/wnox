@@ -11,10 +11,10 @@ declare global { var db: import("mongodb").Db; }
 (async () => {
 
     let c = await App.Connect({ //if process args not available use this
-        app: "myapper",
+        app: "myapp",
         resource: "default",
         securekey: "",
-        image: "/files/email.webp",
+        image: "/files/app/robot.webp",
         public: true,
     })
 
