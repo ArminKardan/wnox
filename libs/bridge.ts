@@ -132,9 +132,14 @@ export namespace App {
     {
         if(process.env.UMONGOURL)
         {
-            var uclient = new MongoClient(process.env.UMONGOURL)
-            let umongo = await uclient.connect()
-            global.udb = umongo.db(process.env.UMONGODB_DB)
+            try
+            {
+                var uclient = new MongoClient(process.env.UMONGOURL)
+                let umongo = await uclient.connect()
+                global.udb = umongo.db(process.env.UMONGODB_DB)
+            } catch{
+
+            }
         }
     }
     export async function Connect(config: {
