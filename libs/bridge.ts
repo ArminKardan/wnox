@@ -134,7 +134,7 @@ export namespace App {
                 var uclient = new MongoClient(process.env.UMONGOURL)
                 let umongo = await uclient.connect()
                 global.udb = umongo.db(process.env.UMONGODB_DB)
-                await client.db().command({ ping: 1 });
+                await uclient.db().command({ ping: 1 });
                 console.log("✅ mongo-udb successfully connected.");
             } catch {
                 console.error("❌ mongo-udb connection failed.")
