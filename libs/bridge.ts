@@ -128,17 +128,16 @@ export namespace App {
     export function on(api: string, cb: (specs: { body: any, uid: string | null, app: string | null, resource: string | null }) => any) {
         Events.push({ api, cb })
     }
-    export async function initUDB()
-    {
-        if(process.env.UMONGOURL)
-        {
-            try
-            {
+    export async function initUDB() {
+        if (process.env.UMONGOURL) {
+            try {
                 var uclient = new MongoClient(process.env.UMONGOURL)
                 let umongo = await uclient.connect()
                 global.udb = umongo.db(process.env.UMONGODB_DB)
-            } catch{
-
+                await client.db().command({ ping: 1 });
+                console.log("✅ mongo-udb successfully connected.");
+            } catch {
+                console.error("❌ mongo-udb connection failed.")
             }
         }
     }
@@ -155,7 +154,7 @@ export namespace App {
         image?: string,
         public?: boolean,
     }> {
-        
+
 
         if (config.app.includes("-")) {
             throw "App name should not contains dash '-'."
@@ -349,8 +348,7 @@ export namespace App {
 
 
                                 }
-                                else if(json.mid && global.xmppapicb[json.mid])
-                                {
+                                else if (json.mid && global.xmppapicb[json.mid]) {
                                     let mid = json.mid
                                     delete json.mid
                                     global.xmppapicb[mid].cb(json)

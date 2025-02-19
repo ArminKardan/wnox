@@ -13,7 +13,7 @@ import fs from 'fs'
     await App.Connect({ //if process args not available use this
         app: "myapp",
         resource: "default",
-        securekey: "",
+        securekey: "3UQXj0OK8FbjG43VsHmYQOuTea81tgCBJQ46ODURXYAFMSQR",
         image: "/files/app/robot.webp",
         public: false,
     })
