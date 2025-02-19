@@ -13,3 +13,4 @@ publish.exe
 /bin
 /*/bin
 /*/obj
+.env*.local

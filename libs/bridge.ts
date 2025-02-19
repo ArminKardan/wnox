@@ -1,4 +1,3 @@
-import { ObjectId } from 'mongodb'
 import fs from 'fs';
 import readline from 'readline'
 import kleur from 'kleur';
@@ -6,7 +5,11 @@ import path from 'path';
 import figlet from 'figlet';
 import "./Prototypes"
 const { client, xml } = require("./xmpp.min.js");
+import { MongoClient, ObjectId } from 'mongodb'
 
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+declare global { var udb: import("mongodb").Db; }
 declare global {
     function sleep(ms): Promise<any>
 }
@@ -58,6 +61,12 @@ export namespace App {
                         jid = !specs.prioritize_public ? jids[0] : jids.at(-1);
                     }
                 }
+
+                if (!jid) {
+                    return { error: "no worker found" }
+                }
+
+                console.log("QE JID:", jid, "APP:", specs.app)
 
 
                 return new Promise(async resolve => {
@@ -114,12 +123,20 @@ export namespace App {
 
     }
 
-    let Events: Array<{ api: string, cb: (json: any, uid: string, isapp: boolean) => any }> = [];
+    let Events: Array<{ api: string, cb: (specs: { body: any, uid: string | null, app: string | null, resource: string | null }) => any }> = [];
 
-    export function on(api: string, cb: (json: any, uid: string, isapp: boolean) => any) {
+    export function on(api: string, cb: (specs: { body: any, uid: string | null, app: string | null, resource: string | null }) => any) {
         Events.push({ api, cb })
     }
-
+    export async function initUDB()
+    {
+        if(process.env.UMONGOURL)
+        {
+            var uclient = new MongoClient(process.env.UMONGOURL)
+            let umongo = await uclient.connect()
+            global.udb = umongo.db(process.env.UMONGODB_DB)
+        }
+    }
     export async function Connect(config: {
         app: string,
         resource: string,
@@ -133,6 +150,14 @@ export namespace App {
         image?: string,
         public?: boolean,
     }> {
+        
+
+        if (config.app.includes("-")) {
+            throw "App name should not contains dash '-'."
+        }
+        else if (config.resource.includes("-")) {
+            throw "Resoiurce name should not contains dash '-'."
+        }
 
         let json = await (await fetch("https://qepal.com/api/bridge/worker/init", {
             method: "POST",
@@ -283,40 +308,98 @@ export namespace App {
                         if (body.startsWith("{")) {
                             try {
                                 let json = JSON.parse(body);
-                                if (json.api) {
+                                if (json.api && !from.includes("@conference.qepal.com")) {
+                                    let found = false
                                     for (let ev of Events) {
                                         if (ev.api == json.api) {
-                                            let { api, ...data } = json
-                                            let isapp = false
+                                            let { api, mid, ...data } = json
+                                            let uid = null
+                                            let resource = null
+                                            let app = null
+
                                             let ___useruid = from.split("@")[0]
-                                            if (___useruid.length != 24 || !ObjectId.isValid(___useruid)) {
-                                                ___useruid = ___useruid.split("-").at(-1)
-                                                isapp = true;
-                                            }
-                                            ___useruid = ___useruid.split("-").at(-1)
                                             if (___useruid.length == 24 && ObjectId.isValid(___useruid)) {
-                                                let res = await ev.cb(data, ___useruid, isapp)
-                                                await xmpp.send(xml(
-                                                    "message",
-                                                    { to: from, type: "chat" }, // type: "chat" for one-to-one messages
-                                                    xml("body", {}, JSON.stringify({ ...res, mid: json.mid, }),
-                                                    )))
+                                                uid = ___useruid
                                             }
+                                            else if (___useruid.includes("-")) {
+                                                let ss = ___useruid.split("-")
+                                                if (ss.length == 2) {
+                                                    app = ss[0]
+                                                    uid = ss[1].length == 24 && ObjectId.isValid(ss[1]) ? ss[1] : null
+                                                    resource = from.split("@qepal.com/")[1]
+                                                }
+                                            }
+
+                                            let res = await ev.cb({ uid, app, resource, body: data })
+                                            await xmpp.send(xml(
+                                                "message",
+                                                { to: from, type: "chat" }, // type: "chat" for one-to-one messages
+                                                xml("body", {}, JSON.stringify({ ...res, mid: json.mid, }),
+                                                )))
+                                            found = true
                                         }
+
                                     }
+                                    if (found) { return }
+
+
                                 }
-                                else {
-                                    global.nexus.msgreceiver({ from, body, itsme, itsbro })
+                                else if(json.mid && global.xmppapicb[json.mid])
+                                {
+                                    let mid = json.mid
+                                    delete json.mid
+                                    global.xmppapicb[mid].cb(json)
+                                    return
                                 }
                             }
                             catch { }
                         }
-                        else {
 
-                            global.nexus.msgreceiver({ from, body, itsme, itsbro })
+                        {
+                            let channel = null
+                            let uid = null
+                            let resource = null
+                            let app = null
+
+                            if (from.includes("@conference.qepal.com")) {
+                                channel = from.split("@conference.qepal.com")[0]
+                                let rest = from.split("@conference.qepal.com")[1]
+                                let rests = rest.split("-")
+                                if (rests.length == 2) {
+                                    if (rests[0].length == 24 && ObjectId.isValid(rests[0])) {
+                                        uid = rests[0]
+                                        resource = rests[1]
+                                    }
+                                }
+                                else if (rests.length == 3) {
+                                    if (rests[1].length == 24 && ObjectId.isValid(rests[1])) {
+                                        app = rests[0]
+                                        uid = rests[1]
+                                        resource = rests[2]
+                                    }
+                                }
+                            }
+                            else if (from.includes("@qepal.com")) {
+                                let ss = from.split("@qepal.com")
+                                if (ss.length == 2) {
+                                    if (ss[0].length == 24 && ObjectId.isValid(ss[0])) {
+                                        uid = ss[0]
+                                    }
+                                    else if (ss[0].split("-").length == 2) {
+                                        let sss = ss[0].split("-")
+                                        if (sss[1].length == 24 && ObjectId.isValid(sss[1])) {
+                                            uid = sss[1]
+                                            app = sss[0]
+                                            resource = from.split("@qepal.com")[1]
+                                        }
+                                    }
+                                }
+                            }
+                            global.nexus.msgreceiver({ from, body, channel, app, uid, resource, itsme, itsbro })
                         }
 
                     }
+
                 }
             });
 
