@@ -6,13 +6,55 @@ import figlet from 'figlet';
 import "./Prototypes"
 const { client, xml } = require("./xmpp.min.js");
 import { MongoClient, ObjectId } from 'mongodb'
-
+var zlib = require('zlib');
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 declare global { var udb: import("mongodb").Db; }
 declare global {
     function sleep(ms): Promise<any>
 }
+
+import pako from 'pako'
+
+
+/**
+ * Compress (deflate) a string and return it as a Base64-encoded string.
+ * @param {string} input - The string to compress.
+ * @returns {string} - Base64-encoded compressed string.
+ */
+function deflateToBase64(input) {
+    // Convert the input string to a Uint8Array
+    const inputData = new TextEncoder().encode(input);
+
+    // Compress the data using pako
+    const compressedData = pako.deflate(inputData);
+
+    // Convert the compressed data to a Base64-encoded string
+    const base64String = Buffer
+        ? Buffer.from(compressedData).toString('base64') // Node.js
+        : btoa(String.fromCharCode(...compressedData)); // Browser
+
+    return base64String;
+}
+
+/**
+ * Decompress (inflate) a Base64-encoded string and return the original string.
+ * @param {string} base64String - The Base64-encoded compressed string.
+ * @returns {string} - The decompressed string.
+ */
+function inflateFromBase64(base64String) {
+    // Convert the Base64 string to a Uint8Array
+    const compressedData = Buffer
+        ? Uint8Array.from(Buffer.from(base64String, 'base64')) // Node.js
+        : Uint8Array.from(atob(base64String), (c) => c.charCodeAt(0)); // Browser
+
+    // Decompress the data using pako
+    const decompressedData = pako.inflate(compressedData, { to: 'string' });
+
+    return decompressedData;
+}
+
+
 
 global.sleep = (ms) => {
     return new Promise(r => setTimeout(() => r(null), ms))
@@ -66,7 +108,7 @@ export namespace App {
                     return { error: "no worker found" }
                 }
 
-                console.log("QE JID:", jid, "APP:", specs.app)
+                // console.log("QE JID:", jid, "APP:", specs.app)
 
 
                 return new Promise(async resolve => {
@@ -77,6 +119,9 @@ export namespace App {
                         api: specs.cmd,
                         ...(specs.body || {}),
                     })
+
+                    msg = zlib.deflateSync(msg).toString('base64')
+
                     let c = setTimeout(() => {
                         resolve({ error: "timeout" })
                     }, 30 * 1000);
@@ -95,13 +140,15 @@ export namespace App {
 
             },
             sendtojid: async (jid: string, body: string) => {
+                let bd = zlib.deflateSync(body).toString('base64')
                 await global.xmpp.send(global.xmppxml(
                     "message",
                     { to: jid, type: "chat" }, // type: "chat" for one-to-one messages
-                    global.xmppxml("body", {}, body,
+                    global.xmppxml("body", {}, bd,
                     )))
             },
             sendtochannel: async (channel: string, body: string) => {
+                let bd = zlib.deflateSync(body).toString('base64')
                 let subs = global.nexus.channels as Set<string>
                 if (!subs.has(channel)) {
 
@@ -115,7 +162,7 @@ export namespace App {
                         from: `${c.app + "-" + global.uid.toString()}@qepal.com/${c.resource}`,
                         type: "groupchat"
                     },
-                    global.xmppxml("body", {}, body,
+                    global.xmppxml("body", {}, bd,
                     )))
             },
         }
@@ -303,7 +350,9 @@ export namespace App {
 
             xmpp.on('stanza', async (stanza) => {
                 if (stanza.is("message")) {
-                    const body = stanza.getChildText("body");
+                    let bdd = stanza.getChildText("body");
+                    try { bdd = inflateFromBase64(bdd) } catch { }
+                    const body = bdd;
                     const from = stanza.attrs.from;
                     const itsme = (from as string).includes(c.app + "-" + global.uid.toString() + "-" + c.resource)
                     const itsbro = !itsme && (from as string).includes(c.app + "-" + global.uid.toString())
@@ -338,7 +387,7 @@ export namespace App {
                                             await xmpp.send(xml(
                                                 "message",
                                                 { to: from, type: "chat" }, // type: "chat" for one-to-one messages
-                                                xml("body", {}, JSON.stringify({ ...res, mid: json.mid, }),
+                                                xml("body", {}, deflateToBase64(JSON.stringify({ ...res, mid: json.mid, })),
                                                 )))
                                             found = true
                                         }
@@ -365,8 +414,8 @@ export namespace App {
                             let app = null
 
                             if (from.includes("@conference.qepal.com")) {
-                                channel = from.split("@conference.qepal.com")[0]
-                                let rest = from.split("@conference.qepal.com")[1]
+                                channel = from.split("@conference.qepal.com/")[0]
+                                let rest = from.split("@conference.qepal.com/")[1]
                                 let rests = rest.split("-")
                                 if (rests.length == 2) {
                                     if (rests[0].length == 24 && ObjectId.isValid(rests[0])) {
@@ -382,8 +431,8 @@ export namespace App {
                                     }
                                 }
                             }
-                            else if (from.includes("@qepal.com")) {
-                                let ss = from.split("@qepal.com")
+                            else if (from.includes("@qepal.com/")) {
+                                let ss = from.split("@qepal.com/")
                                 if (ss.length == 2) {
                                     if (ss[0].length == 24 && ObjectId.isValid(ss[0])) {
                                         uid = ss[0]
@@ -393,7 +442,7 @@ export namespace App {
                                         if (sss[1].length == 24 && ObjectId.isValid(sss[1])) {
                                             uid = sss[1]
                                             app = sss[0]
-                                            resource = from.split("@qepal.com")[1]
+                                            resource = from.split("@qepal.com/")[1]
                                         }
                                     }
                                 }
